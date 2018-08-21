@@ -28,11 +28,12 @@ source(file = "Functions.R")
 # Arguments
 Args = commandArgs(trailingOnly = TRUE)
 # Args = c(1, "A")
+# Args = c(1, "A", "B")
 if (length(Args) < 2) {
   stop("Must provide replicate number as the first argument and scenario as the second argument")
 }
 Rep = Args[1]
-Sce = Args[2]
+Sce = Args[-1]
 # Rep = 1
 # Sce = "A"
 
@@ -99,18 +100,24 @@ for (Depth in rev(unique(Ped$Gen))) {
 }
 # tail(Ped)
 
-# ---- True (IBD) inbreeding ----
+# ---- True (IBD) inbreeding from SNP array and Sequence ----
 
 MaxGen = max(Ped$Gen)
 for (Depth in rev(unique(Ped$Gen))) {
   # Depth = 5
   # Depth = 0
   cat("Base population removed by", Depth, "generations = Inbreeding from generation", MaxGen - Depth, "\n")
-  Tmp = paste0("IbdHaploFrom", formatC(x = MaxGen - Depth, flag = "0", width = nchar(MaxGen)))
+  Tmp = paste0("IbdHaploArrayFrom", formatC(x = MaxGen - Depth, flag = "0", width = nchar(MaxGen)))
   load(file = paste0(Tmp, ".RData"))
   IbdInb = IbdInbreeding(x = get(x = Tmp))
   colnames(IbdInb)[2] = paste0("IbdInb",
                                formatC(x = Depth, flag = "0", width = nchar(MaxGen)))
+  Ped = merge(x = Ped, y = IbdInb, all.x = TRUE)
+  Tmp = paste0("IbdHaploSequenceFrom", formatC(x = MaxGen - Depth, flag = "0", width = nchar(MaxGen)))
+  load(file = paste0(Tmp, ".RData"))
+  IbdInb = IbdInbreeding(x = get(x = Tmp))
+  colnames(IbdInb)[2] = paste0("IbdSeqInb",
+                              formatC(x = Depth, flag = "0", width = nchar(MaxGen)))
   Ped = merge(x = Ped, y = IbdInb, all.x = TRUE)
 }
 # tail(Ped)
@@ -148,11 +155,41 @@ for (Col in Cols) {
 
 # View(Ped)
 if (FALSE) {
-  Gen = 10
-  ggpairs(Ped[, paste0(c("IbdInb", "RohInb", "PedInb"), Gen)])
+  Gen = 25
+  SelectCols = c("IId", "FId", "MId",
+                 paste0(c("IbdSeqInb", "IbdInb", "RohInb", "PedInb"),
+                        formatC(x = Gen, flag = "0", width = nchar(MaxGen))))
+  Tmp = Ped %>%
+    filter(Gen == 3) %>%
+    select(SelectCols)
+  View(Tmp)
+  ggpairs(Tmp)
+  Ped %>%
+    filter(Gen == 3) %>%
+    ggplot(mapping = aes(x = ))
 }
 
-# TODO: use list vectors? to simplify plotting? or just make the table tall?
+# ---- Average inbreeding per generation ----
+
+PedByGeneration = Ped %>%
+  group_by(Gen) %>%
+  select(contains(match = c("Inb"))) %>%
+  summarise_all(mean)
+Tmp = PedByGeneration %>%
+  filter(Gen == 25) %>%
+  list(cbind(Type = "IbdSeq", gather_(data = ., key_col = "BaseGen", value_col = "Inbreeding",
+                                      gather_cols = PedByGeneration %>% filter(contains("IbdSeq")) %>% colnames()),
+       cbind(Type = "Ibd",    gather_(data = ., key_col = "BaseGen", value_col = "Inbreeding",
+                                      gather_cols = colnames(PedByGeneration) %>% filter(. == "IbdSeq"))),
+       cbind(Type = "Roh",    gather_(data = ., key_col = "BaseGen", value_col = "Inbreeding",
+                                      gather_cols = colnames(PedByGeneration) %>% filter(. == "IbdSeq"))),
+       cbind(Type = "Ped",    gather_(data = ., key_col = "BaseGen", value_col = "Inbreeding",
+                                      gather_cols = colnames(PedByGeneration) %>% filter(. == "IbdSeq")))) %>%
+  rbind_all()
+
+
+
+# TODO: use list vectors? to simplify plotting? or just make a tall table?
 
 cat("DONE\n")
 

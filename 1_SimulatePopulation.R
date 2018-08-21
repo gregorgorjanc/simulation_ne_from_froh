@@ -18,13 +18,14 @@ source(file = "Functions.R")
 
 # Arguments
 Args = commandArgs(trailingOnly = TRUE)
-# Args = 1
+# Args = c(1, "Base")
+# Args = c(1, "Base", "SceA", "SceB")
 if (length(Args) < 2) {
   stop("Must provide replicate number (1, 2, ...) as the first argument and\n
        scenario (Base, SceA, SceB, SceC, and SceD) as the second argument!")
 }
 Rep = Args[1]
-Sce = Args[2]
+Sce = Args[-1]
 # Rep = 1
 # Sce = "Base"
 
@@ -56,8 +57,7 @@ VarE = 3
 
 # ---- Coalescent and base population ----
 
-# Sce = "Base"
-if (Sce == "Base") {
+if ("Base" %in% Sce) {
   ScenarioName = paste("Rep_", Rep, sep = "")
   CreateAndSetScenarioFolder(x = ScenarioName)
 
@@ -82,8 +82,7 @@ if (Sce == "Base") {
 
 # ---- Scenario A: Constant Ne ----
 
-# Sce = "SceA"
-if (Sce == "SceA") {
+if ("SceA" %in% Sce) {
   ScenarioName = paste("Rep_", Rep, "_Scenario_A", sep = "")
   CreateAndSetScenarioFolder(x = ScenarioName)
 
@@ -95,7 +94,8 @@ if (Sce == "SceA") {
   # writePlink(pop = Pop,
   #            baseName = paste0("Data",
   #                              formatC(x = Gen, flag = "0", width = nchar(nGen))))
-  for (Gen in 1:nGen) {
+  # for (Gen in 1:nGen) {
+  for (Gen in 1:5) {
     # Gen = 1
     Sires = selectInd(pop = Pop, nInd = nSires, use = "rand", gender = "M")
     Dams  = selectInd(pop = Pop, nInd = nDams,  use = "rand", gender = "F")
@@ -124,9 +124,15 @@ if (Sce == "SceA") {
     PedX = PedX %>%
       select(MId, FId) %>%
       as.matrix()
-    Tmp = paste0("IbdHaploFrom", formatC(x = Generation, flag = "0", width = nchar(nGen)))
-    # TODO: if we remove Pop from the call below we get IBD haplos for the whole ancestral pedigree!
-    assign(x = Tmp, value = pullIbdHaplo(pop = Pop, snpChip = 1, pedigree = PedX))
+    # TODO: if we remove Pop from the pullIbdHaplo calls below we get IBD haplos for the whole ancestral pedigree!
+    Tmp = paste0("IbdHaploSequenceFrom", formatC(x = Generation, flag = "0", width = nchar(nGen)))
+    # assign(x = Tmp, value = pullIbdHaplo(pop = Pop, pedigree = PedX))
+    assign(x = Tmp, value = pullIbdHaplo(pedigree = PedX))
+    save(list = Tmp, file = paste0(Tmp, ".RData"))
+    rm(list = Tmp); gc()
+    Tmp = paste0("IbdHaploArrayFrom", formatC(x = Generation, flag = "0", width = nchar(nGen)))
+    # assign(x = Tmp, value = pullIbdHaplo(pop = Pop, snpChip = 1, pedigree = PedX))
+    assign(x = Tmp, value = pullIbdHaplo(snpChip = 1, pedigree = PedX))
     save(list = Tmp, file = paste0(Tmp, ".RData"))
     rm(list = Tmp); gc()
   }
